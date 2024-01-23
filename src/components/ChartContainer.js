@@ -318,6 +318,7 @@ const ChartContainer = forwardRef(
               multipleSelect={multipleSelect}
               changeHierarchy={changeHierarchy}
               onClickNode={onClickNode}
+              isHybrid={datasource.isHybrid}
             />
           </ul>
         </div>

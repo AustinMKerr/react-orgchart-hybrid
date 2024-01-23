@@ -450,3 +450,45 @@
     transform: rotate(360deg);
   }
 }
+
+
+.hybrid-content {
+  position: relative;
+  display: inline-block; /* or 'flex' depending on your layout */
+  margin-bottom: 20px; /* space between node and its children */
+}
+
+/* Style for vertical lines connecting hybrid node to its children */
+.hybrid-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px; /* line width */
+  height: 20px; /* adjust as needed */
+  background-color: rgba(217, 83, 79, 0.8);
+}
+
+/* Style for horizontal lines if there are multiple children */
+.hybrid-content .node-children::before {
+  content: '';
+  position: absolute;
+  top: 20px; /* adjust to align with the end of the vertical line */
+  left: 0;
+  width: 100%;
+  border-top: 2px solid rgba(217, 83, 79, 0.8);
+}
+
+/* Additional styles for child nodes within hybrid-content */
+.hybrid-content .oc-node {
+  display: inline-block; /* or 'block' if you prefer a vertical layout */
+  margin: 0 5px; /* spacing between sibling nodes */
+  /* Add other styles as needed */
+}
+
+.oc-node.hybrid {
+  border-style: double; /* Example: double border */
+  border-color: #ff9900; /* Orange border */
+  background-color: #fff5e6; /* Light orange background */
+}

@@ -20,14 +20,15 @@ const defaultProps = {
 };
 
 const ChartNode = ({
-  datasource,
-  NodeTemplate,
-  draggable,
-  collapsible,
-  multipleSelect,
-  changeHierarchy,
-  onClickNode
-}) => {
+                     datasource,
+                     NodeTemplate,
+                     draggable,
+                     collapsible,
+                     multipleSelect,
+                     changeHierarchy,
+                     onClickNode,
+                     isHybrid
+                   }) => {
   const node = useRef();
 
   const [isChildrenCollapsed, setIsChildrenCollapsed] = useState(false);
@@ -38,25 +39,29 @@ const ChartNode = ({
   const [allowedDrop, setAllowedDrop] = useState(false);
   const [selected, setSelected] = useState(false);
 
+  const isHybridNode = datasource.relationship && datasource.relationship.charAt(0) === '1';
+
+
   const nodeClass = [
     "oc-node",
     isChildrenCollapsed ? "isChildrenCollapsed" : "",
     allowedDrop ? "allowedDrop" : "",
-    selected ? "selected" : ""
+    selected ? "selected" : "",
+    isHybrid ? "hybrid" : "" // Add this line to include the hybrid class
   ]
-    .filter(item => item)
-    .join(" ");
+      .filter(item => item)
+      .join(" ");
 
   useEffect(() => {
     const subs1 = dragNodeService.getDragInfo().subscribe(draggedInfo => {
       if (draggedInfo) {
         setAllowedDrop(
-          !document
-            .querySelector("#" + draggedInfo.draggedNodeId)
-            .closest("li")
-            .querySelector("#" + node.current.id)
-            ? true
-            : false
+            !document
+                .querySelector("#" + draggedInfo.draggedNodeId)
+                .closest("li")
+                .querySelector("#" + node.current.id)
+                ? true
+                : false
         );
       } else {
         setAllowedDrop(false);
@@ -64,20 +69,20 @@ const ChartNode = ({
     });
 
     const subs2 = selectNodeService
-      .getSelectedNodeInfo()
-      .subscribe(selectedNodeInfo => {
-        if (selectedNodeInfo) {
-          if (multipleSelect) {
-            if (selectedNodeInfo.selectedNodeId === datasource.id) {
-              setSelected(true);
+        .getSelectedNodeInfo()
+        .subscribe(selectedNodeInfo => {
+          if (selectedNodeInfo) {
+            if (multipleSelect) {
+              if (selectedNodeInfo.selectedNodeId === datasource.id) {
+                setSelected(true);
+              }
+            } else {
+              setSelected(selectedNodeInfo.selectedNodeId === datasource.id);
             }
           } else {
-            setSelected(selectedNodeInfo.selectedNodeId === datasource.id);
+            setSelected(false);
           }
-        } else {
-          setSelected(false);
-        }
-      });
+        });
 
     return () => {
       subs1.unsubscribe();
@@ -89,11 +94,11 @@ const ChartNode = ({
     const node = e.target.closest("li");
     const parent = node.parentNode.closest("li");
     const isAncestorsCollapsed =
-      node && parent
-        ? parent.firstChild.classList.contains("hidden")
-        : undefined;
+        node && parent
+            ? parent.firstChild.classList.contains("hidden")
+            : undefined;
     const isSiblingsCollapsed = Array.from(
-      node.parentNode.children
+        node.parentNode.children
     ).some(item => item.classList.contains("hidden"));
 
     setTopEdgeExpanded(!isAncestorsCollapsed);
@@ -120,22 +125,22 @@ const ChartNode = ({
     } else {
       // 向下折叠，则折叠所有祖先节点以及祖先节点的兄弟节点
       const isSiblingsCollapsed = Array.from(
-        actionNode.parentNode.children
+          actionNode.parentNode.children
       ).some(item => item.classList.contains("hidden"));
       if (!isSiblingsCollapsed) {
         toggleSiblings(actionNode);
       }
       actionNode.classList.add(
-        ...(
-          "isAncestorsCollapsed" +
-          (isSiblingsCollapsed ? "" : " isSiblingsCollapsed")
-        ).split(" ")
+          ...(
+              "isAncestorsCollapsed" +
+              (isSiblingsCollapsed ? "" : " isSiblingsCollapsed")
+          ).split(" ")
       );
       node.firstChild.classList.add("hidden");
       // 如果还有展开的祖先节点，那继续折叠关闭之
       if (
-        node.parentNode.closest("li") &&
-        !node.parentNode.closest("li").firstChild.classList.contains("hidden")
+          node.parentNode.closest("li") &&
+          !node.parentNode.closest("li").firstChild.classList.contains("hidden")
       ) {
         toggleAncestors(node);
       }
@@ -157,7 +162,7 @@ const ChartNode = ({
   const toggleSiblings = actionNode => {
     let node = actionNode.previousSibling;
     const isSiblingsCollapsed = Array.from(
-      actionNode.parentNode.children
+        actionNode.parentNode.children
     ).some(item => item.classList.contains("hidden"));
     actionNode.classList.toggle("isSiblingsCollapsed", !isSiblingsCollapsed);
     // 先处理同级的兄弟节点
@@ -180,8 +185,8 @@ const ChartNode = ({
     }
     // 在展开兄弟节点的同时，还要展开父节点
     const isAncestorsCollapsed = actionNode.parentNode
-      .closest("li")
-      .firstChild.classList.contains("hidden");
+        .closest("li")
+        .firstChild.classList.contains("hidden");
     if (isAncestorsCollapsed) {
       toggleAncestors(actionNode);
     }
@@ -230,113 +235,138 @@ const ChartNode = ({
     }
     dragNodeService.clearDragInfo();
     changeHierarchy(
-      JSON.parse(event.dataTransfer.getData("text/plain")),
-      event.currentTarget.id
+        JSON.parse(event.dataTransfer.getData("text/plain")),
+        event.currentTarget.id
     );
   };
 
   return (
-    <li className="oc-hierarchy">
-      <div
-        ref={node}
-        id={datasource.id}
-        className={nodeClass}
-        draggable={draggable ? "true" : undefined}
-        onClick={clickNodeHandler}
-        onDragStart={dragstartHandler}
-        onDragOver={dragoverHandler}
-        onDragEnd={dragendHandler}
-        onDrop={dropHandler}
-        onMouseEnter={addArrows}
-        onMouseLeave={removeArrows}
-      >
-        {NodeTemplate ? (
-          <NodeTemplate nodeData={datasource} />
-        ) : (
-          <>
-            <div className="oc-heading">
-              {datasource.relationship &&
-                datasource.relationship.charAt(2) === "1" && (
-                  <i className="oci oci-leader oc-symbol" />
+      <li className={`oc-hierarchy ${isHybrid ? 'hybrid' : ''}`}>
+        <div
+            ref={node}
+            id={datasource.id}
+            className={nodeClass}
+            draggable={draggable ? "true" : undefined}
+            onClick={clickNodeHandler}
+            onDragStart={dragstartHandler}
+            onDragOver={dragoverHandler}
+            onDragEnd={dragendHandler}
+            onDrop={dropHandler}
+            onMouseEnter={addArrows}
+            onMouseLeave={removeArrows}
+        >
+          {NodeTemplate ? (
+              <NodeTemplate nodeData={datasource} />
+          ) : (
+              <>
+                <div className="oc-heading">
+                  {datasource.relationship &&
+                      datasource.relationship.charAt(2) === "1" && (
+                          <i className="oci oci-leader oc-symbol" />
+                      )}
+                  {datasource.name}
+                </div>
+                <div className="oc-content">{datasource.title}</div>
+              </>
+          )}
+          {collapsible &&
+              datasource.relationship &&
+              datasource.relationship.charAt(0) === "1" && (
+                  <i
+                      className={`oc-edge verticalEdge topEdge oci ${
+                          topEdgeExpanded === undefined
+                              ? ""
+                              : topEdgeExpanded
+                                  ? "oci-chevron-down"
+                                  : "oci-chevron-up"
+                      }`}
+                      onClick={topEdgeClickHandler}
+                  />
+              )}
+          {collapsible &&
+              datasource.relationship &&
+              datasource.relationship.charAt(1) === "1" && (
+                  <>
+                    <i
+                        className={`oc-edge horizontalEdge rightEdge oci ${
+                            rightEdgeExpanded === undefined
+                                ? ""
+                                : rightEdgeExpanded
+                                    ? "oci-chevron-left"
+                                    : "oci-chevron-right"
+                        }`}
+                        onClick={hEdgeClickHandler}
+                    />
+                    <i
+                        className={`oc-edge horizontalEdge leftEdge oci ${
+                            leftEdgeExpanded === undefined
+                                ? ""
+                                : leftEdgeExpanded
+                                    ? "oci-chevron-right"
+                                    : "oci-chevron-left"
+                        }`}
+                        onClick={hEdgeClickHandler}
+                    />
+                  </>
+              )}
+          {collapsible &&
+              datasource.relationship &&
+              datasource.relationship.charAt(2) === "1" && (
+                  <i
+                      className={`oc-edge verticalEdge bottomEdge oci ${
+                          bottomEdgeExpanded === undefined
+                              ? ""
+                              : bottomEdgeExpanded
+                                  ? "oci-chevron-up"
+                                  : "oci-chevron-down"
+                      }`}
+                      onClick={bottomEdgeClickHandler}
+                  />
+              )}
+        </div>
+        {isHybrid && (
+            // Additional elements or styles for hybrid nodes go here
+            <div className="hybrid-content">
+              <div className="hybrid-content">
+                {/* Custom content for hybrid nodes */}
+                {datasource.children && (
+                    <div className="node-children">
+                      {datasource.children.map((child) => (
+                          <ChartNode
+                              key={child.id}
+                              datasource={child}
+                              NodeTemplate={NodeTemplate}
+                              draggable={draggable}
+                              collapsible={collapsible}
+                              multipleSelect={multipleSelect}
+                              changeHierarchy={changeHierarchy}
+                              onClickNode={onClickNode}
+                              isHybrid={child.isHybrid}
+                          />
+                      ))}
+                    </div>
                 )}
-              {datasource.name}
+              </div>
             </div>
-            <div className="oc-content">{datasource.title}</div>
-          </>
         )}
-        {collapsible &&
-          datasource.relationship &&
-          datasource.relationship.charAt(0) === "1" && (
-            <i
-              className={`oc-edge verticalEdge topEdge oci ${
-                topEdgeExpanded === undefined
-                  ? ""
-                  : topEdgeExpanded
-                  ? "oci-chevron-down"
-                  : "oci-chevron-up"
-              }`}
-              onClick={topEdgeClickHandler}
-            />
-          )}
-        {collapsible &&
-          datasource.relationship &&
-          datasource.relationship.charAt(1) === "1" && (
-            <>
-              <i
-                className={`oc-edge horizontalEdge rightEdge oci ${
-                  rightEdgeExpanded === undefined
-                    ? ""
-                    : rightEdgeExpanded
-                    ? "oci-chevron-left"
-                    : "oci-chevron-right"
-                }`}
-                onClick={hEdgeClickHandler}
-              />
-              <i
-                className={`oc-edge horizontalEdge leftEdge oci ${
-                  leftEdgeExpanded === undefined
-                    ? ""
-                    : leftEdgeExpanded
-                    ? "oci-chevron-right"
-                    : "oci-chevron-left"
-                }`}
-                onClick={hEdgeClickHandler}
-              />
-            </>
-          )}
-        {collapsible &&
-          datasource.relationship &&
-          datasource.relationship.charAt(2) === "1" && (
-            <i
-              className={`oc-edge verticalEdge bottomEdge oci ${
-                bottomEdgeExpanded === undefined
-                  ? ""
-                  : bottomEdgeExpanded
-                  ? "oci-chevron-up"
-                  : "oci-chevron-down"
-              }`}
-              onClick={bottomEdgeClickHandler}
-            />
-          )}
-      </div>
-      {datasource.children && datasource.children.length > 0 && (
-        <ul className={isChildrenCollapsed ? "hidden" : ""}>
-          {datasource.children.map(node => (
-            <ChartNode
-              datasource={node}
-              NodeTemplate={NodeTemplate}
-              id={node.id}
-              key={node.id}
-              draggable={draggable}
-              collapsible={collapsible}
-              multipleSelect={multipleSelect}
-              changeHierarchy={changeHierarchy}
-              onClickNode={onClickNode}
-            />
-          ))}
-        </ul>
-      )}
-    </li>
+        {datasource.children && datasource.children.length > 0 && (
+            <ul className={`${isChildrenCollapsed ? 'hidden' : ''} ${isHybridNode ? 'hybrid' : ''}`}>
+              {datasource.children.map(node => (
+                  <ChartNode
+                      datasource={node}
+                      NodeTemplate={NodeTemplate}
+                      id={node.id}
+                      key={node.id}
+                      draggable={draggable}
+                      collapsible={collapsible}
+                      multipleSelect={multipleSelect}
+                      changeHierarchy={changeHierarchy}
+                      onClickNode={onClickNode}
+                  />
+              ))}
+            </ul>
+        )}
+      </li>
   );
 };
 
